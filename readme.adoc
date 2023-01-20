@@ -1,0 +1,31 @@
+= M2E Bytebuddy Class Leak Reproducer
+
+== Problem
+
+In Eclipse / STS, a Maven project using the Maven Bytebuddy Plugin leaks loaded classes every time the project is build and that plugin is invoked.
+This can be via a project refresh or if you simply compile a particular class as this invokes the build plugin incrementally, too.
+The sample project contains the jMolecules Bytebuddy plugin (a plugin to Bytebuddy) that adds JPA default mappings for classes that use the jMolecules DDD types.
+
+== Steps to reproduce
+
+* Import the project into an M2E enabled Eclipse / STS
+* Use `jps` to find the id of the process
+* Invoke `jcmd $processid VM.classes | grep bytebuddy | wc -l`
+
+You should see the number returned as a result from that command increase, every time the Maven Bytebuddy Plugin is invoked.
+
+= Observations
+
+* The sample project adds 700-1000 classes per project refresh. A simple incremental compile (after an edit in the type) adds about 100.
+The number of classes added does not seem to correlate with the number of files processed as a significantly bigger project shows roundabout the same numbers.
+* Removing the jMolecules Bytebuddy plugin from the project causes the increase of the classes to stop. However, it only frees a low tow-digit number of loaded classes, either.
+
+= Ideas
+
+The observations seem to indicate that it is the jMolecules Bytebuddy plugin that causes the new classes to be loaded.
+However, the number of classes grepping for jmolecules stays roundabout constant and it's only new Bytebuddy classes that get added.
+I've added `first.txt` and `second.txt` to see the difference.
+`second.txt` is the output of the shown above command after a full project refresh.
+
+I'm inclined to think that it's not the jMolecules Bytebuddy plugin directly causing the issue but it matching some files to be processed causing the Bytebuddy Maven Plugin to initialize and load code to actually process the files.
+It might also indicate m2e's way of handling the build plugin instances to flawed and it not properly cleaning up those.
